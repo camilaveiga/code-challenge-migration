@@ -1,56 +1,68 @@
 package com.example.dummyjson.service;
-
 import com.example.dummyjson.dto.Product;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.web.client.RestTemplate;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpMethod;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import java.util.Arrays;
 import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
-
-@RunWith(MockitoJUnitRunner.class)
+@SpringBootTest
 public class ProductServiceTest {
 
-    @InjectMocks
+    @Autowired
     private ProductService productService;
+    private WebTestClient webTestClient;
 
-    @Mock
-    private RestTemplate restTemplate;
+    @BeforeEach
+    public void setup() {
+        webTestClient = WebTestClient.bindToServer().baseUrl("https://dummyjson.com").build();
+    }
 
     @Test
     public void testGetAllProducts() {
+
         Product product1 = new Product();
         product1.setId(1L);
-        product1.setTitle("Product 1");
+        product1.setTitle("Essence Mascara Lash Princess");
 
         Product product2 = new Product();
         product2.setId(2L);
-        product2.setTitle("Product 2");
+        product2.setTitle("Eyeshadow Palette with Mirror");
+        List<Product> expectedProducts = Arrays.asList(product1);
+        // Mocking response using WebTestClient
 
-        Product[] products = {product1, product2};
-        when(restTemplate.getForObject("https://dummyjson.com/products", Product[].class)).thenReturn(products);
-
-        List<Product> result = productService.getAllProducts();
-        assertEquals(2, result.size());
-        assertEquals("Product 1", result.get(0).getTitle());
+        webTestClient.get().uri("/products")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType("application/json;charset=UTF-8")
+                .expectBodyList(ProductResponse.class)
+                .consumeWith(response -> {
+                    List<ProductResponse> result = response.getResponseBody();
+                    assertEquals(expectedProducts.size(), result.size());
+                    assertEquals(expectedProducts.get(0).getTitle(), result.get(0).getTitle());
+                });
     }
 
     @Test
     public void testGetProductById() {
+
         Product product = new Product();
         product.setId(1L);
-        product.setTitle("Product 1");
-
-        when(restTemplate.getForObject("https://dummyjson.com/products/1", Product.class)).thenReturn(product);
-
-        Product result = productService.getProductById(1L);
-        assertEquals("Product 1", result.getTitle());
+        product.setTitle("Essence Mascara Lash Princess");
+        // Mocking response using WebTestClient
+        webTestClient.get().uri("/products/1")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(Product.class)
+                .consumeWith(response -> {
+                    Product result = response.getResponseBody();
+                    assertEquals(product.getTitle(), result.getTitle());
+                });
     }
 }
